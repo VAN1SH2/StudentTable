@@ -1,0 +1,29 @@
+.gradle/
+.kotlin/
+**/build/
+local.properties
+.idea/
+*.iml
+.externalNativeBuild/
+.cxx/
+
+# Generated application packages
+*.apk
+*.aab
+
+# Local databases and signing credentials
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+.env
+.env.*
+
+# Operating system files
+.DS_Store
+Thumbs.db

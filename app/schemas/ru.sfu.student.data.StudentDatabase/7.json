@@ -1,0 +1,410 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 7,
+    "identityHash": "0a93db76c6801890c1999583d1a97455",
+    "entities": [
+      {
+        "tableName": "lessons",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`groupId` INTEGER NOT NULL, `id` INTEGER NOT NULL, `data_id` INTEGER NOT NULL, `data_week` INTEGER NOT NULL, `data_dayOfWeek` INTEGER NOT NULL, `data_startTime` TEXT NOT NULL, `data_endTime` TEXT NOT NULL, `data_subject` TEXT NOT NULL, `data_teacher` TEXT NOT NULL, `data_type` TEXT NOT NULL, `data_building` TEXT NOT NULL, `data_room` TEXT NOT NULL, `data_description` TEXT NOT NULL, `data_subjectId` INTEGER, `data_subgroup` INTEGER, PRIMARY KEY(`groupId`, `id`), FOREIGN KEY(`groupId`) REFERENCES `groups`(`groupId`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "groupId",
+            "columnName": "groupId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "data.id",
+            "columnName": "data_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "data.week",
+            "columnName": "data_week",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "data.dayOfWeek",
+            "columnName": "data_dayOfWeek",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "data.startTime",
+            "columnName": "data_startTime",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "data.endTime",
+            "columnName": "data_endTime",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "data.subject",
+            "columnName": "data_subject",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "data.teacher",
+            "columnName": "data_teacher",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "data.type",
+            "columnName": "data_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "data.building",
+            "columnName": "data_building",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "data.room",
+            "columnName": "data_room",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "data.description",
+            "columnName": "data_description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "data.subjectId",
+            "columnName": "data_subjectId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "data.subgroup",
+            "columnName": "data_subgroup",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "groupId",
+            "id"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "groups",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "groupId"
+            ],
+            "referencedColumns": [
+              "groupId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "tasks",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `subject` TEXT NOT NULL, `notes` TEXT NOT NULL, `dueAt` INTEGER NOT NULL, `remindMinutes` INTEGER NOT NULL, `done` INTEGER NOT NULL, `groupId` INTEGER, `subjectId` INTEGER, `lessonId` INTEGER, `lessonDate` TEXT, `reminderMinutes` TEXT, `lessonBindingKey` TEXT, FOREIGN KEY(`groupId`) REFERENCES `groups`(`groupId`) ON UPDATE CASCADE ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "subject",
+            "columnName": "subject",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dueAt",
+            "columnName": "dueAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "remindMinutes",
+            "columnName": "remindMinutes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "done",
+            "columnName": "done",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "groupId",
+            "columnName": "groupId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "subjectId",
+            "columnName": "subjectId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lessonId",
+            "columnName": "lessonId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lessonDate",
+            "columnName": "lessonDate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "reminderMinutes",
+            "columnName": "reminderMinutes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lessonBindingKey",
+            "columnName": "lessonBindingKey",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_tasks_groupId",
+            "unique": false,
+            "columnNames": [
+              "groupId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_tasks_groupId` ON `${TABLE_NAME}` (`groupId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "groups",
+            "onDelete": "SET NULL",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "groupId"
+            ],
+            "referencedColumns": [
+              "groupId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "settings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `deadlineNotifications` INTEGER NOT NULL, `lessonNotifications` INTEGER NOT NULL, `lessonLeadMinutes` INTEGER NOT NULL, `anchorMonday` TEXT NOT NULL, `anchorWeek` INTEGER NOT NULL, `weekConfirmed` INTEGER NOT NULL, `lastImportAt` INTEGER NOT NULL, `activeGroupId` INTEGER, `primaryGroupId` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deadlineNotifications",
+            "columnName": "deadlineNotifications",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lessonNotifications",
+            "columnName": "lessonNotifications",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lessonLeadMinutes",
+            "columnName": "lessonLeadMinutes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "anchorMonday",
+            "columnName": "anchorMonday",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "anchorWeek",
+            "columnName": "anchorWeek",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weekConfirmed",
+            "columnName": "weekConfirmed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastImportAt",
+            "columnName": "lastImportAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activeGroupId",
+            "columnName": "activeGroupId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "primaryGroupId",
+            "columnName": "primaryGroupId",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "groups",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`groupId` INTEGER NOT NULL, `groupName` TEXT NOT NULL, `course` INTEGER NOT NULL, `educationLevel` TEXT NOT NULL, `isSession` INTEGER NOT NULL, `lastUpdated` INTEGER NOT NULL, `universityCode` TEXT NOT NULL DEFAULT 'sfu', `weekAnchorMonday` TEXT NOT NULL DEFAULT '', `weekAnchorWeek` INTEGER NOT NULL DEFAULT 1, `weekConfirmed` INTEGER NOT NULL DEFAULT 0, `selectedSubgroup` INTEGER, PRIMARY KEY(`groupId`))",
+        "fields": [
+          {
+            "fieldPath": "groupId",
+            "columnName": "groupId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "groupName",
+            "columnName": "groupName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "course",
+            "columnName": "course",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "educationLevel",
+            "columnName": "educationLevel",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isSession",
+            "columnName": "isSession",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUpdated",
+            "columnName": "lastUpdated",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "universityCode",
+            "columnName": "universityCode",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'sfu'"
+          },
+          {
+            "fieldPath": "weekAnchorMonday",
+            "columnName": "weekAnchorMonday",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "weekAnchorWeek",
+            "columnName": "weekAnchorWeek",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "1"
+          },
+          {
+            "fieldPath": "weekConfirmed",
+            "columnName": "weekConfirmed",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "selectedSubgroup",
+            "columnName": "selectedSubgroup",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "groupId"
+          ]
+        }
+      },
+      {
+        "tableName": "deliveries",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`key` TEXT NOT NULL, `sentAt` INTEGER NOT NULL, PRIMARY KEY(`key`))",
+        "fields": [
+          {
+            "fieldPath": "key",
+            "columnName": "key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sentAt",
+            "columnName": "sentAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "key"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0a93db76c6801890c1999583d1a97455')"
+    ]
+  }
+}
