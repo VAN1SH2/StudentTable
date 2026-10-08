@@ -21,6 +21,17 @@ android {
         versionCode = 9
         versionName = "0.5.1"
     }
+    signingConfigs {
+        getByName("debug") {
+            // CI restores the existing key outside Android's default user directory.
+            providers.environmentVariable("STUDENTTABLE_DEBUG_KEYSTORE").orNull?.let {
+                storeFile = file(it)
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
+    }
     buildFeatures { compose = true }
     testOptions {
         unitTests.isIncludeAndroidResources = true

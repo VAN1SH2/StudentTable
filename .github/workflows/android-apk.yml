@@ -43,9 +43,15 @@ jobs:
             echo 'The ANDROID_DEBUG_KEYSTORE_BASE64 repository secret is required.' >&2
             exit 1
           fi
-          mkdir -p "$HOME/.android"
-          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$HOME/.android/debug.keystore"
-          chmod 600 "$HOME/.android/debug.keystore"
+          signing_path="$RUNNER_TEMP/studenttable-debug.keystore"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$signing_path"
+          chmod 600 "$signing_path"
+          key_certificate=$(keytool -J-Duser.language=en -J-Duser.country=US -list -v -alias androiddebugkey -keystore "$signing_path" -storepass android | sed -n 's/^[[:space:]]*SHA256: //p' | tr -d ':' | tr 'A-F' 'a-f')
+          if [ "$key_certificate" != "$EXPECTED_CERT_SHA256" ]; then
+            echo 'The restored signing key differs from the existing app.' >&2
+            exit 1
+          fi
+          printf 'STUDENTTABLE_DEBUG_KEYSTORE=%s\n' "$signing_path" >> "$GITHUB_ENV"
 
       - name: Test and build APK
         run: ./gradlew :core:test :app:assembleDebug --no-daemon --console=plain
@@ -84,4 +90,4 @@ jobs:
 
       - name: Remove signing key from the runner
         if: always()
-        run: rm -f "$HOME/.android/debug.keystore"
+        run: rm -f "$RUNNER_TEMP/studenttable-debug.keystore"
