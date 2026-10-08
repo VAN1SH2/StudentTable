@@ -1,8 +1,8 @@
 # StudentTable 0.6.0
 
-**[Скачать APK для Android](https://github.com/VAN1SH2/StudentTable/releases/latest/download/StudentTable.apk)** · [Все сборки](https://github.com/VAN1SH2/StudentTable/releases) · [Статус автосборки](https://github.com/VAN1SH2/StudentTable/actions/workflows/android-apk.yml)
+**[Скачать APK для Android](https://github.com/VAN1SH2/StudentTable/releases/latest)** · [Все сборки](https://github.com/VAN1SH2/StudentTable/releases) · [Статус автосборки](https://github.com/VAN1SH2/StudentTable/actions/workflows/android-apk.yml)
 
-После каждого Push в `main` GitHub Actions запускает тесты core, собирает APK и публикует его в Releases. Ссылка выше всегда ведёт к последней успешной сборке; при ошибке предыдущая сборка остаётся доступной. Можно запустить сборку вручную: Actions → Build and publish APK → Run workflow.
+После каждого Push в `main` GitHub Actions запускает тесты core, собирает APK и публикует его в Releases. Ссылка выше открывает последнюю успешную сборку: в Assets скачайте файл с версией в имени, например `StudentTable-0.6.0.apk`. При ошибке предыдущая сборка остаётся доступной. Можно запустить сборку вручную: Actions → Build and publish APK → Run workflow.
 
 APK работает на Android 8.0 и новее. Автосборки используют тот же сохранённый ключ подписи, что и исходные локальные APK; приложение можно обновлять поверх предыдущей версии, сохраняя группы и задачи. Ключ находится только в секрете репозитория `ANDROID_DEBUG_KEYSTORE_BASE64`, в исходниках его нет. Сейчас распространяется debug APK для прямой установки на телефон.
 

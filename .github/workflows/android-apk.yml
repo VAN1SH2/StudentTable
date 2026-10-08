@@ -68,25 +68,27 @@ jobs:
             exit 1
           fi
           version=$(jq -er '.elements[0].versionName' app/build/outputs/apk/debug/output-metadata.json)
+          apk_name="StudentTable-${version}.apk"
           mkdir -p dist
-          cp "$apk" dist/StudentTable.apk
-          (cd dist && sha256sum StudentTable.apk > SHA256SUMS.txt)
-          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
-          printf 'Сборка StudentTable %s для Android 8.0 и новее.\n\nСкачайте **StudentTable.apk** из Assets ниже.\n\nКод: `%s`\n' "$version" "$GITHUB_SHA" > dist/release-notes.md
+          cp "$apk" "dist/$apk_name"
+          (cd dist && sha256sum "$apk_name" > SHA256SUMS.txt)
+          printf 'version=%s\napk_name=%s\n' "$version" "$apk_name" >> "$GITHUB_OUTPUT"
+          printf 'Сборка StudentTable %s для Android 8.0 и новее.\n\nСкачайте **%s** из Assets ниже.\n\nКод: `%s`\n' "$version" "$apk_name" "$GITHUB_SHA" > dist/release-notes.md
 
       - name: Publish the APK in Releases
         env:
           GH_TOKEN: ${{ github.token }}
           APP_VERSION: ${{ steps.package.outputs.version }}
+          APK_NAME: ${{ steps.package.outputs.apk_name }}
         run: |
           tag="build-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
-          gh release create "$tag" dist/StudentTable.apk dist/SHA256SUMS.txt \
+          gh release create "$tag" "dist/$APK_NAME" dist/SHA256SUMS.txt \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "StudentTable $APP_VERSION · сборка $GITHUB_RUN_NUMBER" \
             --notes-file dist/release-notes.md \
             --latest
-          printf '### APK готов\n\n[Скачать StudentTable.apk](https://github.com/%s/releases/latest/download/StudentTable.apk)\n' "$GITHUB_REPOSITORY" >> "$GITHUB_STEP_SUMMARY"
+          printf '### APK готов\n\n[Скачать %s](https://github.com/%s/releases/latest/download/%s)\n' "$APK_NAME" "$GITHUB_REPOSITORY" "$APK_NAME" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Remove signing key from the runner
         if: always()
