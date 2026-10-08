@@ -18,7 +18,7 @@ fun StudentState.upcomingLessons(groupId: Long?, subjectId: Long?, subject: Stri
 
 fun StudentState.nextOccurrenceForLesson(groupId: Long?, lesson: Lesson, now: Instant,
     zone: ZoneId = ScheduleCycle.zone): LessonOccurrence? =
-    upcomingLessons(groupId, lesson.subjectId, lesson.subject, now, zone).firstOrNull { it.lesson.id == lesson.id }
+    upcomingLessons(groupId, lesson.subjectId, lesson.subject, now, zone).firstOrNull()
 
 fun StudentState.lessonOccurrence(groupId: Long?, lessonId: Long?, lessonDate: String?,
     zone: ZoneId = ScheduleCycle.zone, bindingKey: String? = null): LessonOccurrence? {

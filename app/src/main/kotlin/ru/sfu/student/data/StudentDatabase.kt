@@ -21,7 +21,7 @@ data class StoredLesson(val groupId: Long, val id: Long, @Embedded(prefix = "dat
 @Entity(tableName = "tasks", indices = [Index("groupId")],
     foreignKeys = [ForeignKey(entity = SavedGroup::class, parentColumns = ["groupId"], childColumns = ["groupId"], onDelete = ForeignKey.SET_NULL, onUpdate = ForeignKey.CASCADE)])
 data class StudentTask(@PrimaryKey(autoGenerate = true) val id: Long = 0, val title: String,
-    val subject: String = "", val notes: String = "", val dueAt: Long, val remindMinutes: Int = 60,
+    val subject: String = "", val notes: String = "", val dueAt: Long, val remindMinutes: Int = 1440,
     val done: Boolean = false, val groupId: Long? = null, val subjectId: Long? = null,
     val lessonId: Long? = null, val lessonDate: String? = null,
     val reminderMinutes: List<Int>? = null, val lessonBindingKey: String? = null)

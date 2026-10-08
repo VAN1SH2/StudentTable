@@ -27,7 +27,8 @@ class ReminderPlanTest {
         assertEquals(emptyList<Int>(), converter.fromStorage(converter.toStorage(emptyList())))
         assertEquals(listOf(2880, 60, 0), converter.fromStorage(converter.toStorage(listOf(0, 60, 2880))))
         val task = StudentTask(title = "Задание", dueAt = 100)
-        assertEquals(listOf(60), task.reminderLeads)
+        assertEquals(listOf(1440), task.reminderLeads)
+        assertEquals(listOf(60), task.copy(remindMinutes = 60).reminderLeads)
         assertTrue(task.copy(reminderMinutes = emptyList()).reminderLeads.isEmpty())
         assertEquals(listOf(2880, 60), task.copy(reminderMinutes = listOf(60, 2880)).reminderLeads)
     }

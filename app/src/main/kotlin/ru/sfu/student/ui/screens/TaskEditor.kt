@@ -46,7 +46,7 @@ private fun reminderLabel(value: Int) = when (value) { -1 -> "Нет"; 0 -> "В 
     var selectedLessonId by rememberSaveable { mutableStateOf(task?.lessonId ?: initialNearest?.lesson?.id) }
     var selectedLessonDate by rememberSaveable { mutableStateOf(task?.lessonDate ?: initialNearest?.date?.toString()) }
     var selectedBindingKey by rememberSaveable { mutableStateOf(task?.lessonBindingKey ?: initialNearest?.lesson?.let(LessonBinding::key)) }
-    var reminders by rememberSaveable { mutableStateOf(DeadlineReminders.resolve(task?.reminderMinutes, task?.remindMinutes ?: 60)) }
+    var reminders by rememberSaveable { mutableStateOf(DeadlineReminders.resolve(task?.reminderMinutes, task?.remindMinutes ?: 1440)) }
     var groupMenu by remember { mutableStateOf(false) }
     var subjectMenu by remember { mutableStateOf(false) }
     val due = Instant.ofEpochMilli(epoch).atZone(zone)

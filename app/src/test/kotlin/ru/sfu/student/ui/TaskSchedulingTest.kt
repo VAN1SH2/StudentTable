@@ -33,15 +33,29 @@ class TaskSchedulingTest {
         assertTrue(state.upcomingLessons(999, null, "Предмет", now, zone).isEmpty())
     }
 
-    @Test fun openingAPracticeCardDoesNotSelectAnEarlierLecture() {
+    @Test fun openingAPracticeCardSelectsTheNearestSubjectClassEvenIfItIsALecture() {
         val group = SavedGroup(11, "СФУ", weekAnchorMonday = "2026-09-28", weekAnchorWeek = 1, weekConfirmed = true)
         val practice = lesson(2).copy(week = 1, startTime = "14:10", type = "пр. занятие")
         val lecture = practice.copy(id = 1, startTime = "12:00", type = "лекция")
         val state = StudentState(groups = listOf(group), lessons = listOf(StoredLesson(11, 1, lecture), StoredLesson(11, 2, practice)))
         val chosen = state.nextOccurrenceForLesson(11, practice, now, zone)!!
-        assertEquals(2L, chosen.lesson.id)
+        assertEquals(1L, chosen.lesson.id)
         assertEquals(LocalDate.of(2026, 10, 1), chosen.date)
-        assertEquals(LocalTime.of(14, 10), chosen.startsAt.atZone(zone).toLocalTime())
+        assertEquals(LocalTime.of(12, 0), chosen.startsAt.atZone(zone).toLocalTime())
+    }
+
+    @Test fun selectsNextWeeksClassInsteadOfRepeatingTheClickedIdTwoWeeksLater() {
+        val group = SavedGroup(11, "СФУ", weekAnchorMonday = "2026-09-28", weekAnchorWeek = 1, weekConfirmed = true)
+        val current = lesson(1).copy(week = 1)
+        val nextWeek = current.copy(id = 2, week = 2)
+        val unrelated = current.copy(id = 3, subject = "Другой предмет", startTime = "16:00")
+        val state = StudentState(groups = listOf(group), lessons = listOf(StoredLesson(11, 1, current),
+            StoredLesson(11, 2, nextWeek), StoredLesson(11, 3, unrelated)))
+        val afterCurrent = LocalDate.of(2026, 10, 1).atTime(15, 30).atZone(zone).toInstant()
+        val chosen = state.nextOccurrenceForLesson(11, current, afterCurrent, zone)!!
+        assertEquals(2L, chosen.lesson.id)
+        assertEquals(LocalDate.of(2026, 10, 8), chosen.date)
+        assertEquals(LocalTime.of(13, 45), chosen.startsAt.atZone(zone).toLocalTime())
     }
 
     @Test fun savedOccurrenceCanBeRestoredAfterItsStartWithoutUsingTheDeadline() {
