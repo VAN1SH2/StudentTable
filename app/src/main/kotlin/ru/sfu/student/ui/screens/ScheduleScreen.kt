@@ -8,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -27,8 +28,9 @@ import java.time.format.DateTimeFormatter
     val zone = ScheduleCycle.zone
     val today = now.atZone(zone).toLocalDate()
     val reference = state.weekReference
+    val anchorMonday = remember(reference.monday) { LocalDate.parse(reference.monday) }
     val days = remember(state.lessons, group, today, reference) {
-        ScheduleWindow.days(state.activeLessons, today, LocalDate.parse(reference.monday), reference.week)
+        ScheduleWindow.days(state.activeLessons, today, anchorMonday, reference.week)
     }
     val selected = selectedDay.coerceIn(0, 13)
     val selectedWeek = days[selected].week
@@ -53,10 +55,24 @@ import java.time.format.DateTimeFormatter
         }
         ScheduleDateStrip(days, selected, today, onSelectDay)
         HorizontalPager(state = motion.pager, key = { days[it].date.toString() },
-            modifier = Modifier.weight(1f).graphicsLayer { alpha = motion.opacity }, verticalAlignment = Alignment.Top) { page ->
+            beyondViewportPageCount = 1, overscrollEffect = null,
+            modifier = Modifier.weight(1f).graphicsLayer {
+                // Fade the draw commands without allocating a full-page offscreen texture.
+                compositingStrategy = CompositingStrategy.ModulateAlpha
+                alpha = motion.opacity
+            }, verticalAlignment = Alignment.Top) { page ->
             val date = days[page].date
             val daily = days[page].lessons
-            LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            val lessonTasks = remember(daily, state.tasks, group?.groupId, date) {
+                daily.associate { lesson -> lesson.id to tasksForLesson(lesson, group!!.groupId, state.tasks, date) }
+            }
+            val nextId = remember(daily, date, now, zone) {
+                if (date == today) daily.firstOrNull {
+                    date.atTime(LocalTime.parse(it.startTime)).atZone(zone).toInstant().isAfter(now)
+                }?.id else null
+            }
+            LazyColumn(Modifier.fillMaxSize(), overscrollEffect = null,
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 item {
                     Text(date.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Russian)).replaceFirstChar { it.uppercase() },
                         style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 4.dp))
@@ -67,23 +83,26 @@ import java.time.format.DateTimeFormatter
                     !state.activeScheduleLoaded -> item { EmptyState("Расписание пока не загружено", "Обновите расписание кнопкой ↻. После загрузки пары доступны без интернета.") { TextButton(onClick = onRefresh, enabled = !importing) { Text("Загрузить расписание") } } }
                     daily.isEmpty() -> item {
                         val from = if (date == today) now else date.plusDays(1).atStartOfDay(zone).toInstant()
-                        val next = state.activeLessons.map { it to ScheduleCycle.nextStart(it, from, LocalDate.parse(reference.monday), reference.week, 0, zone) }.minByOrNull { it.second }
+                        val next = state.activeLessons.map { it to ScheduleCycle.nextStart(it, from, anchorMonday, reference.week, 0, zone) }.minByOrNull { it.second }
                         EmptyState(if (date == today) "Сегодня пар нет" else "В этот день пар нет", next?.let {
                             "Следующая пара:\n${it.second.atZone(zone).format(DateTimeFormatter.ofPattern("EEEE, HH:mm", Russian)).replaceFirstChar { ch -> ch.uppercase() }}\n${it.first.subject}"
                         } ?: "Отдыхайте или займитесь заданиями.")
                     }
                 }
                 items(daily, key = { it.id }) { lesson ->
-                    val remaining = ScheduleCycle.remainingMinutes(lesson, date, now, zone)
-                    val startsIn = ScheduleCycle.startingSoonMinutes(lesson, date, now, zone)
-                    val nextId = daily.firstOrNull { date.atTime(LocalTime.parse(it.startTime)).atZone(zone).toInstant().isAfter(now) }?.id
                     val status = when {
                         date != today -> null
-                        remaining != null -> "До конца пары — $remaining мин"
-                        lesson.id == nextId && startsIn != null -> "Пара начнётся через $startsIn ${minuteWord(startsIn)}"
-                        else -> null
+                        else -> {
+                            val remaining = ScheduleCycle.remainingMinutes(lesson, date, now, zone)
+                            val startsIn = if (lesson.id == nextId) ScheduleCycle.startingSoonMinutes(lesson, date, now, zone) else null
+                            when {
+                                remaining != null -> "До конца пары — $remaining мин"
+                                startsIn != null -> "Пара начнётся через $startsIn ${minuteWord(startsIn)}"
+                                else -> null
+                            }
+                        }
                     }
-                    LessonCard(lesson, tasksForLesson(lesson, group!!.groupId, state.tasks, date), now, status, onTask,
+                    LessonCard(lesson, lessonTasks[lesson.id].orEmpty(), now, status, onTask,
                         onCreateTask = { onLesson(lesson) })
                 }
                 item { TextButton(onClick = onFull, enabled = group != null, modifier = Modifier.fillMaxWidth()) { Text("Посмотреть расписание на 2 недели") } }
@@ -107,7 +126,7 @@ import java.time.format.DateTimeFormatter
         Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             (1..2).forEach { value -> FilterChip(week == value, { week = value }, label = { Text(if (state.activeGroup?.university == University.IRNITU) "$value · ${if (value == 1) "нечётная" else "чётная"}" else "Неделя $value") }) }
         }
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        LazyColumn(Modifier.fillMaxSize(), overscrollEffect = null, contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (!state.activeScheduleLoaded) item { EmptyState("Расписание пока не загружено", "Вернитесь на главный экран и обновите его.") }
             else (1..7).forEach { day ->
                 val daily = state.activeLessons.filter { it.week == week && it.dayOfWeek == day }.sortedBy { it.startTime }

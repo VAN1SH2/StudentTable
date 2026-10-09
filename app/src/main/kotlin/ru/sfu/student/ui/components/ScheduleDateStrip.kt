@@ -37,7 +37,7 @@ import kotlinx.coroutines.flow.first
             item.offset + item.size <= layout.viewportEndOffset - layout.afterContentPadding
         if (!fullyVisible) scroll.animateScrollToItem((selected - 2).coerceAtLeast(0))
     }
-    LazyRow(Modifier.fillMaxWidth(), state = scroll, contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+    LazyRow(Modifier.fillMaxWidth(), state = scroll, overscrollEffect = null, contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         itemsIndexed(days, key = { _, day -> day.date.toString() }) { index, day ->
             val active = selected == index
