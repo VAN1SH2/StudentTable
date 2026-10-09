@@ -27,25 +27,25 @@ private fun reminderLabel(value: Int) = when (value) { -1 -> "Нет"; 0 -> "В 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun TaskEditor(task: StudentTask?, state: StudentState, onDismiss: () -> Unit,
     onSave: (StudentTask) -> Unit, onDelete: (StudentTask) -> Unit, zone: ZoneId = ScheduleCycle.zone,
-    initialGroupId: Long? = null, initialLesson: Lesson? = null, now: Instant = Instant.now()) {
+    initialGroupId: Long? = null, initialLesson: Lesson? = null, now: Instant = Instant.now(), initialLessonDate: LocalDate? = null) {
     val context = LocalContext.current
     val fieldShape = RoundedCornerShape(16.dp)
     val seededGroupId = if (task != null) task.groupId else initialGroupId ?: state.activeGroup?.groupId
     val seededSubjectId = if (task != null) task.subjectId else initialLesson?.subjectId
     val seededSubject = if (task != null) task.subject else initialLesson?.subject.orEmpty()
-    val initialNearest = remember(task?.id, seededGroupId, initialLesson?.id, zone) {
-        if (task == null && initialLesson != null) state.nextOccurrenceForLesson(seededGroupId, initialLesson, now, zone)
+    val initialOccurrence = remember(task?.id, seededGroupId, initialLesson?.id, initialLessonDate, zone) {
+        if (task == null && initialLesson != null) state.initialTaskOccurrence(seededGroupId, initialLesson, now, zone, initialLessonDate)
         else null
     }
     var title by rememberSaveable { mutableStateOf(task?.title.orEmpty()) }
     var groupId by rememberSaveable { mutableStateOf(seededGroupId) }
     var subjectId by rememberSaveable { mutableStateOf(seededSubjectId) }
     var subject by rememberSaveable { mutableStateOf(seededSubject) }
-    var epoch by rememberSaveable { mutableLongStateOf(task?.dueAt ?: initialNearest?.startsAt?.toEpochMilli()
+    var epoch by rememberSaveable { mutableLongStateOf(task?.dueAt ?: initialOccurrence?.startsAt?.toEpochMilli()
         ?: now.atZone(zone).plusDays(1).withHour(18).withMinute(0).withSecond(0).withNano(0).toInstant().toEpochMilli()) }
-    var selectedLessonId by rememberSaveable { mutableStateOf(task?.lessonId ?: initialNearest?.lesson?.id) }
-    var selectedLessonDate by rememberSaveable { mutableStateOf(task?.lessonDate ?: initialNearest?.date?.toString()) }
-    var selectedBindingKey by rememberSaveable { mutableStateOf(task?.lessonBindingKey ?: initialNearest?.lesson?.let(LessonBinding::key)) }
+    var selectedLessonId by rememberSaveable { mutableStateOf(task?.lessonId ?: initialOccurrence?.lesson?.id) }
+    var selectedLessonDate by rememberSaveable { mutableStateOf(task?.lessonDate ?: initialOccurrence?.date?.toString()) }
+    var selectedBindingKey by rememberSaveable { mutableStateOf(task?.lessonBindingKey ?: initialOccurrence?.lesson?.let(LessonBinding::key)) }
     var reminders by rememberSaveable { mutableStateOf(DeadlineReminders.resolve(task?.reminderMinutes, task?.remindMinutes ?: 1440)) }
     var groupMenu by remember { mutableStateOf(false) }
     var subjectMenu by remember { mutableStateOf(false) }

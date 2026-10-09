@@ -30,7 +30,7 @@ import java.time.format.DateTimeFormatter
 
 @Composable fun CalendarScreen(state: StudentState, now: Instant, selectedDate: LocalDate, importing: Boolean,
     onSelectDate: (LocalDate) -> Unit, onGroups: () -> Unit, onRefresh: () -> Unit,
-    onTask: (StudentTask) -> Unit, onDone: (StudentTask) -> Unit, onLesson: (Lesson) -> Unit) {
+    onTask: (StudentTask) -> Unit, onDone: (StudentTask) -> Unit, onLesson: (Lesson, LocalDate) -> Unit) {
     val context = LocalContext.current
     val zone = ScheduleCycle.zone
     val today = now.atZone(zone).toLocalDate()
@@ -122,7 +122,7 @@ import java.time.format.DateTimeFormatter
         if (state.ready && group != null) items(day.schedule.lessons, key = { "lesson-${it.id}" }) { lesson ->
             val remaining = if (selectedDate == today) ScheduleCycle.remainingMinutes(lesson, selectedDate, now, zone) else null
             LessonCard(lesson, tasksForLesson(lesson, group.groupId, state.tasks, selectedDate), now,
-                status = remaining?.let { "До конца пары — $it мин" }, onTask = onTask, onCreateTask = { onLesson(lesson) })
+                status = remaining?.let { "До конца пары — $it мин" }, onTask = onTask, onCreateTask = { onLesson(lesson, selectedDate) })
         }
         item { Text("Дедлайны · ${day.deadlines.size}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
         if (state.ready && day.deadlines.isEmpty()) item { Text("На этот день дедлайнов нет", color = MaterialTheme.colorScheme.onSurfaceVariant) }

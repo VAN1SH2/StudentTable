@@ -16,9 +16,10 @@ fun StudentState.upcomingLessons(groupId: Long?, subjectId: Long?, subject: Stri
         LocalDate.parse(reference.monday), reference.week, zone)
 }
 
-fun StudentState.nextOccurrenceForLesson(groupId: Long?, lesson: Lesson, now: Instant,
-    zone: ZoneId = ScheduleCycle.zone): LessonOccurrence? =
-    upcomingLessons(groupId, lesson.subjectId, lesson.subject, now, zone).firstOrNull()
+fun StudentState.initialTaskOccurrence(groupId: Long?, lesson: Lesson, now: Instant,
+    zone: ZoneId = ScheduleCycle.zone, date: LocalDate? = null): LessonOccurrence? =
+    if (date != null) lessonOccurrence(groupId, lesson.id, date.toString(), zone, LessonBinding.key(lesson))
+    else upcomingLessons(groupId, lesson.subjectId, lesson.subject, now, zone).firstOrNull()
 
 fun StudentState.lessonOccurrence(groupId: Long?, lessonId: Long?, lessonDate: String?,
     zone: ZoneId = ScheduleCycle.zone, bindingKey: String? = null): LessonOccurrence? {

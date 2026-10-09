@@ -28,6 +28,7 @@ import java.time.LocalDate
     var editedId by rememberSaveable { mutableStateOf<Long?>(null) }
     var draftGroupId by rememberSaveable { mutableStateOf<Long?>(null) }
     var draftLessonId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var draftLessonDate by rememberSaveable { mutableStateOf<String?>(null) }
     var editor by rememberSaveable { mutableStateOf(false) }
     val state by model.state.collectAsStateWithLifecycle()
     val importing by model.importing.collectAsStateWithLifecycle()
@@ -59,15 +60,15 @@ import java.time.LocalDate
                     indicatorColor = MaterialTheme.colorScheme.primaryContainer)) }
         }
     }, floatingActionButton = {
-        if (screen == 1) ExtendedFloatingActionButton(onClick = { editedId = null; draftGroupId = null; draftLessonId = null; editor = true }, containerColor = MaterialTheme.colorScheme.primary) { Text("+ Задача", color = MaterialTheme.colorScheme.onPrimary) }
+        if (screen == 1) ExtendedFloatingActionButton(onClick = { editedId = null; draftGroupId = null; draftLessonId = null; draftLessonDate = null; editor = true }, containerColor = MaterialTheme.colorScheme.primary) { Text("+ Задача", color = MaterialTheme.colorScheme.onPrimary) }
     }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             if (screen != 0) Text(when (screen) { 1 -> "Задачи"; 3 -> "Календарь"; else -> "Настройки" },
                 style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp))
-            val onTask: (StudentTask) -> Unit = { editedId = it.id; draftGroupId = null; draftLessonId = null; editor = true }
+            val onTask: (StudentTask) -> Unit = { editedId = it.id; draftGroupId = null; draftLessonId = null; draftLessonDate = null; editor = true }
             val onLesson: (Lesson) -> Unit = { lesson ->
                 state.activeGroup?.let { group ->
-                    editedId = null; draftGroupId = group.groupId; draftLessonId = lesson.id; editor = true
+                    editedId = null; draftGroupId = group.groupId; draftLessonId = lesson.id; draftLessonDate = null; editor = true
                 }
             }
             when {
@@ -75,17 +76,19 @@ import java.time.LocalDate
                 screen == 0 -> ScheduleScreen(state, now, day, importing, model::selectDay, { groups = true }, { model.importSchedule() }, { full = true }, onTask, onLesson)
                 screen == 1 -> TasksScreen(state, now, onTask, { model.saveTask(it.copy(done = !it.done)) }, model::deleteTask, { groups = true })
                 screen == 3 -> CalendarScreen(state, now, LocalDate.parse(calendarDate), importing, { calendarDate = it.toString() },
-                    { groups = true }, { model.importSchedule() }, onTask, { model.saveTask(it.copy(done = !it.done)) }, onLesson)
+                    { groups = true }, { model.importSchedule() }, onTask, { model.saveTask(it.copy(done = !it.done)) },
+                    { lesson, date -> onLesson(lesson); draftLessonDate = date.toString() })
                 else -> SettingsScreen(state, now, importing, model, { groups = true })
             }
         }
     }
     if (groups) GroupsSheet(state, model, { groups = false })
-    if (editor && state.ready) key(editedId, draftGroupId, draftLessonId) {
+    if (editor && state.ready) key(editedId, draftGroupId, draftLessonId, draftLessonDate) {
         TaskEditor(state.tasks.firstOrNull { it.id == editedId }, state, { editor = false },
             { model.saveTask(it); editor = false }, { model.deleteTask(it); editor = false }, zone = ScheduleCycle.zone,
             initialGroupId = draftGroupId,
             initialLesson = state.lessons.firstOrNull { it.groupId == draftGroupId && it.id == draftLessonId }?.data,
+            initialLessonDate = draftLessonDate?.let(LocalDate::parse),
             now = now)
     }
 }

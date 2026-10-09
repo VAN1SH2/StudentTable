@@ -38,7 +38,7 @@ class TaskSchedulingTest {
         val practice = lesson(2).copy(week = 1, startTime = "14:10", type = "пр. занятие")
         val lecture = practice.copy(id = 1, startTime = "12:00", type = "лекция")
         val state = StudentState(groups = listOf(group), lessons = listOf(StoredLesson(11, 1, lecture), StoredLesson(11, 2, practice)))
-        val chosen = state.nextOccurrenceForLesson(11, practice, now, zone)!!
+        val chosen = state.initialTaskOccurrence(11, practice, now, zone)!!
         assertEquals(1L, chosen.lesson.id)
         assertEquals(LocalDate.of(2026, 10, 1), chosen.date)
         assertEquals(LocalTime.of(12, 0), chosen.startsAt.atZone(zone).toLocalTime())
@@ -52,7 +52,7 @@ class TaskSchedulingTest {
         val state = StudentState(groups = listOf(group), lessons = listOf(StoredLesson(11, 1, current),
             StoredLesson(11, 2, nextWeek), StoredLesson(11, 3, unrelated)))
         val afterCurrent = LocalDate.of(2026, 10, 1).atTime(15, 30).atZone(zone).toInstant()
-        val chosen = state.nextOccurrenceForLesson(11, current, afterCurrent, zone)!!
+        val chosen = state.initialTaskOccurrence(11, current, afterCurrent, zone)!!
         assertEquals(2L, chosen.lesson.id)
         assertEquals(LocalDate.of(2026, 10, 8), chosen.date)
         assertEquals(LocalTime.of(13, 45), chosen.startsAt.atZone(zone).toLocalTime())
@@ -68,5 +68,33 @@ class TaskSchedulingTest {
         assertNull(state.lessonOccurrence(12, 2, "2026-09-17", zone))
         assertNull(state.lessonOccurrence(11, 2, "invalid", zone))
         assertNull(state.lessonOccurrence(11, null, null, zone))
+    }
+
+    @Test fun calendarCreationKeepsTheClickedPracticeAndSelectedDateInsteadOfTheNearestLecture() {
+        val group = SavedGroup(11, "СФУ", weekAnchorMonday = "2026-09-28", weekAnchorWeek = 1, weekConfirmed = true)
+        val practice = lesson(2).copy(week = 1, startTime = "14:10", type = "пр. занятие")
+        val lecture = practice.copy(id = 1, startTime = "12:00", type = "лекция")
+        val state = StudentState(groups = listOf(group), lessons = listOf(StoredLesson(11, 1, lecture), StoredLesson(11, 2, practice)))
+        val selectedDate = LocalDate.of(2026, 10, 15)
+        val chosen = state.initialTaskOccurrence(11, practice, now, zone, selectedDate)!!
+        assertEquals(2L, chosen.lesson.id)
+        assertEquals(selectedDate, chosen.date)
+        assertEquals(selectedDate.atTime(14, 10).atZone(zone).toInstant(), chosen.startsAt)
+        assertEquals(1L, state.initialTaskOccurrence(11, practice, now, zone)!!.lesson.id)
+        assertEquals(LocalDate.of(2026, 10, 1), state.initialTaskOccurrence(11, practice, now, zone)!!.date)
+    }
+
+    @Test fun calendarCreationAcceptsPastAndDistantDatesAndUsesDeviceLessonTime() {
+        val group = SavedGroup(11, "СФУ", weekAnchorMonday = "2026-09-28", weekAnchorWeek = 1, weekConfirmed = true)
+        val practice = lesson(2).copy(week = 1)
+        val state = StudentState(groups = listOf(group), lessons = listOf(StoredLesson(11, 2, practice)))
+        listOf(LocalDate.of(2026, 9, 17), LocalDate.of(2027, 1, 21)).forEach { date ->
+            listOf(ZoneOffset.ofHours(-5), zone).forEach { deviceZone ->
+                val chosen = state.initialTaskOccurrence(11, practice, now, deviceZone, date)!!
+                assertEquals(date, chosen.date)
+                assertEquals(2L, chosen.lesson.id)
+                assertEquals(date.atTime(13, 45).atZone(deviceZone).toInstant(), chosen.startsAt)
+            }
+        }
     }
 }
