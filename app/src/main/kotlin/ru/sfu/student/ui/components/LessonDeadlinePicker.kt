@@ -19,7 +19,7 @@ import ru.sfu.student.core.LessonOccurrence
 import java.time.format.DateTimeFormatter
 
 @Composable fun LessonDeadlinePicker(choices: List<LessonOccurrence>, selectedKey: String?,
-    onSelect: (LessonOccurrence) -> Unit, onManualDate: () -> Unit) {
+    nearestKey: String?, onSelect: (LessonOccurrence) -> Unit, onManualDate: () -> Unit) {
     val scroll = rememberScrollState()
     val cardWidth = 220.dp
     val stride = with(LocalDensity.current) { (cardWidth + 10.dp).roundToPx() }
@@ -33,7 +33,7 @@ import java.time.format.DateTimeFormatter
             Text("В ближайший месяц занятий этого предмета нет. Выберите срок вручную.",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else Row(Modifier.fillMaxWidth().horizontalScroll(scroll), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            choices.forEachIndexed { index, occurrence -> key(occurrence.key) {
+            choices.forEach { occurrence -> key(occurrence.key) {
                 val selected = occurrence.key == selectedKey
                 Surface(onClick = { onSelect(occurrence) }, modifier = Modifier.width(cardWidth).heightIn(min = 126.dp),
                     shape = RoundedCornerShape(12.dp),
@@ -41,7 +41,7 @@ import java.time.format.DateTimeFormatter
                     border = if (selected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(occurrence.date.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Russian))
+                            Text(occurrence.date.format(DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Russian))
                                 .replaceFirstChar { it.uppercase() }, modifier = Modifier.weight(1f),
                                 style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                             if (selected) Icon(painterResource(R.drawable.ic_check), "Выбрано",
@@ -52,7 +52,7 @@ import java.time.format.DateTimeFormatter
                             color = MaterialTheme.colorScheme.primary)
                         Text(typeLabel(occurrence.lesson.type).ifBlank { "Занятие" },
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        if (index == 0) Text("Ближайшая пара", style = MaterialTheme.typography.labelSmall,
+                        if (occurrence.key == nearestKey) Text("Ближайшая пара", style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary)
                     }
                 }

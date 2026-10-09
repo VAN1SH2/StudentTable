@@ -21,6 +21,12 @@ fun StudentState.initialTaskOccurrence(groupId: Long?, lesson: Lesson, now: Inst
     if (date != null) lessonOccurrence(groupId, lesson.id, date.toString(), zone, LessonBinding.key(lesson))
     else upcomingLessons(groupId, lesson.subjectId, lesson.subject, now, zone).firstOrNull()
 
+/** Keep the selected class visible even outside the monthly suggestion window. */
+fun lessonDeadlineChoices(upcoming: List<LessonOccurrence>, picked: LessonOccurrence?): List<LessonOccurrence> =
+    if (picked == null) upcoming
+    else (listOf(picked) + upcoming).distinctBy { it.key }
+        .sortedWith(compareBy({ it.startsAt }, { it.lesson.type }, { it.lesson.id }))
+
 fun StudentState.lessonOccurrence(groupId: Long?, lessonId: Long?, lessonDate: String?,
     zone: ZoneId = ScheduleCycle.zone, bindingKey: String? = null): LessonOccurrence? {
     if (groupId == null || lessonId == null || lessonDate == null) return null

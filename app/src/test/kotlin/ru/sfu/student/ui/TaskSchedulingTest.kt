@@ -97,4 +97,31 @@ class TaskSchedulingTest {
             }
         }
     }
+
+    @Test fun deadlinePickerIncludesTheSelectedCalendarClassOutsideTheUpcomingMonth() {
+        val group = SavedGroup(11, "СФУ", weekAnchorMonday = "2026-09-28", weekAnchorWeek = 1, weekConfirmed = true)
+        val practice = lesson(2).copy(week = 1)
+        val state = StudentState(groups = listOf(group), lessons = listOf(StoredLesson(11, 2, practice)))
+        val upcoming = state.upcomingLessons(11, null, "Предмет", now, zone)
+        assertFalse(upcoming.isEmpty())
+        listOf(LocalDate.of(2026, 9, 17), LocalDate.of(2027, 1, 21)).forEach { date ->
+            val selected = state.initialTaskOccurrence(11, practice, now, zone, date)!!
+            assertFalse(upcoming.any { it.key == selected.key })
+            val choices = lessonDeadlineChoices(upcoming, selected)
+            assertEquals(upcoming.size + 1, choices.size)
+            assertEquals(selected, choices.single { it.key == selected.key })
+            assertTrue(choices.containsAll(upcoming))
+            assertEquals(choices.map { it.startsAt }.sorted(), choices.map { it.startsAt })
+        }
+    }
+
+    @Test fun deadlinePickerDoesNotDuplicateTheSelectedClassAndKeepsItWhenNoSuggestionsExist() {
+        val practice = lesson(2)
+        val date = LocalDate.of(2027, 1, 21)
+        val selected = LessonOccurrence(practice, date, date.atTime(13, 45).atZone(zone).toInstant())
+        assertEquals(listOf(selected), lessonDeadlineChoices(listOf(selected), selected))
+        assertEquals(listOf(selected), lessonDeadlineChoices(emptyList(), selected))
+        assertEquals(listOf(selected), lessonDeadlineChoices(listOf(selected), null))
+        assertTrue(lessonDeadlineChoices(emptyList(), null).isEmpty())
+    }
 }

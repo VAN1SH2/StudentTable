@@ -17,7 +17,6 @@ import ru.sfu.student.core.*
 import ru.sfu.student.data.*
 import ru.sfu.student.ui.*
 import ru.sfu.student.ui.components.LessonDeadlinePicker
-import ru.sfu.student.ui.components.typeLabel
 import java.time.*
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -52,12 +51,13 @@ private fun reminderLabel(value: Int) = when (value) { -1 -> "Нет"; 0 -> "В 
     val due = Instant.ofEpochMilli(epoch).atZone(zone)
     val selectedGroup = state.groups.firstOrNull { it.groupId == groupId }
     val nowMinute = now.truncatedTo(ChronoUnit.MINUTES)
-    val choices = remember(state.lessons, selectedGroup, subjectId, subject, nowMinute, zone) {
+    val upcoming = remember(state.lessons, selectedGroup, subjectId, subject, nowMinute, zone) {
         state.upcomingLessons(groupId, subjectId, subject, now, zone)
     }
     val picked = remember(state.lessons, groupId, selectedLessonId, selectedLessonDate, selectedBindingKey, zone) {
         state.lessonOccurrence(groupId, selectedLessonId, selectedLessonDate, zone, selectedBindingKey)
     }
+    val choices = remember(upcoming, picked) { lessonDeadlineChoices(upcoming, picked) }
     val selectedOccurrenceKey = picked?.key ?: selectedLessonDate?.let { date -> selectedLessonId?.let { id -> "$date:$id" } }
     val subjects = state.lessonsForGroup(groupId).distinctBy { it.subjectId?.toString() ?: it.subject }
         .map { SubjectChoice(it.subjectId, it.subject) }.sortedBy { it.name }.toMutableList()
@@ -118,16 +118,13 @@ private fun reminderLabel(value: Int) = when (value) { -1 -> "Нет"; 0 -> "В 
             if (subject.isNotBlank() && selectedGroup != null) {
                 if (!selectedGroup.hasConfirmedWeek(state.settings)) Text("Проверьте номер недели этой группы в настройках.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                LessonDeadlinePicker(choices, selectedOccurrenceKey, { occurrence ->
+                LessonDeadlinePicker(choices, selectedOccurrenceKey, upcoming.firstOrNull()?.key, { occurrence ->
                     selectedLessonId = occurrence.lesson.id; selectedLessonDate = occurrence.date.toString()
                     selectedBindingKey = LessonBinding.key(occurrence.lesson)
                     epoch = occurrence.startsAt.toEpochMilli()
                 }, { pickDate() })
                 if (selectedOccurrenceKey != null) {
-                    if (picked != null && choices.none { it.key == picked.key }) Text(
-                        "Выбрано: ${picked.date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))} · ${picked.lesson.startTime} · ${typeLabel(picked.lesson.type)}",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-                    else if (picked == null) Text("Выбранная пара на $selectedLessonDate отсутствует в текущем расписании. Можно выбрать другую.",
+                    if (picked == null) Text("Выбранная пара на $selectedLessonDate отсутствует в текущем расписании. Можно выбрать другую.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("Задание появится только у выбранной пары. Срок можно изменить ниже.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
