@@ -21,7 +21,9 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.*
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.sfu.student.R
+import ru.sfu.student.BuildConfig
 import ru.sfu.student.core.*
 import ru.sfu.student.data.*
 
@@ -33,6 +35,7 @@ import java.time.*
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
     val settings = state.settings
+    val checkingUpdate by model.checkingAppUpdate.collectAsStateWithLifecycle()
     var allowed by remember { mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled()) }
     var delete by remember { mutableStateOf<SavedGroup?>(null) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
@@ -102,12 +105,17 @@ import java.time.*
             Text("Android может задерживать напоминания при энергосбережении. После принудительной остановки приложения откройте его снова.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } }
         item { SectionCard("О приложении") {
-            Text("${stringResource(R.string.app_name)} 0.5.1")
+            Text("${stringResource(R.string.app_name)} ${BuildConfig.VERSION_NAME}")
+            TextButton(onClick = { model.checkAppUpdate(force = true) }, enabled = !checkingUpdate) {
+                Text(if (checkingUpdate) "Проверяем обновления…" else "Проверить обновления")
+            }
+            Text("Обновления проверяются при входе в приложение не чаще одного раза в 24 часа.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("Источники: официальные сайты СФУ и ИРНИТУ")
             University.entries.forEach { university ->
                 TextButton(onClick = { openCourse(context, university.scheduleUrl) }) { Text("Расписание ${university.label} ↗") }
             }
-            Text("Расписание, задачи и настройки хранятся локально. Интернет нужен только для поиска групп и обновления пар.")
+            Text("Расписание, задачи и настройки хранятся локально. Интернет нужен для поиска групп, обновления пар и проверки новых версий приложения.")
             Text("Время и календарь: как на устройстве. Импортируется регулярное расписание; разовые переносы и экзамены проверяйте на сайте.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } }
     }

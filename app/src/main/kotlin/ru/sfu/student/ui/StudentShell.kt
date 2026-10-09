@@ -19,6 +19,7 @@ import ru.sfu.student.core.ScheduleCycle
 import ru.sfu.student.core.Lesson
 import ru.sfu.student.data.StudentTask
 import ru.sfu.student.ui.screens.*
+import ru.sfu.student.ui.components.AppUpdateDialog
 import java.time.LocalDate
 
 @Composable fun StudentShell(requestedScreen: Int, navigationRequest: Int, model: StudentViewModel = viewModel()) {
@@ -32,6 +33,8 @@ import java.time.LocalDate
     var editor by rememberSaveable { mutableStateOf(false) }
     val state by model.state.collectAsStateWithLifecycle()
     val importing by model.importing.collectAsStateWithLifecycle()
+    val appUpdate by model.appUpdate.collectAsStateWithLifecycle()
+    val updateDownload by model.updateDownload.collectAsStateWithLifecycle()
     val now by model.clock.collectAsStateWithLifecycle()
     var calendarDate by rememberSaveable { mutableStateOf(now.atZone(ScheduleCycle.zone).toLocalDate().toString()) }
     val day by model.selectedDay.collectAsStateWithLifecycle()
@@ -90,5 +93,9 @@ import java.time.LocalDate
             initialLesson = state.lessons.firstOrNull { it.groupId == draftGroupId && it.id == draftLessonId }?.data,
             initialLessonDate = draftLessonDate?.let(LocalDate::parse),
             now = now)
+    }
+    if (state.ready && !editor && !groups) appUpdate?.let { release ->
+        AppUpdateDialog(release, updateDownload, model::updatePromptShown, model::downloadAppUpdate,
+            model::dismissAppUpdate, model::updateInstallError)
     }
 }

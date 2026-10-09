@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.*
 import ru.sfu.student.StudentApp
 import ru.sfu.student.core.*
 import ru.sfu.student.data.*
+import ru.sfu.student.updates.*
 import java.time.Instant
 import java.time.LocalDate
 
@@ -49,6 +50,12 @@ class StudentViewModel(application: Application, private val saved: SavedStateHa
     val searchUniversity = MutableStateFlow(University.SFU)
     val search = MutableStateFlow(SearchState())
     val clock = MutableStateFlow(Instant.now())
+    val appUpdate = MutableStateFlow<AppUpdate?>(null)
+    val checkingAppUpdate = MutableStateFlow(false)
+    val updateDownload = MutableStateFlow<UpdateDownloadState>(UpdateDownloadState.Idle)
+    private val updateDownloader = AppUpdateDownloader(application)
+    private var updateCheckJob: Job? = null
+    private var updateDownloadJob: Job? = null
     val selectedDay = saved.getStateFlow("selectedDay", clock.value.atZone(ScheduleCycle.zone).dayOfWeek.value - 1)
     private val eventsChannel = kotlinx.coroutines.channels.Channel<UiEvent>(kotlinx.coroutines.channels.Channel.UNLIMITED)
     val events = eventsChannel.receiveAsFlow()
@@ -77,8 +84,54 @@ class StudentViewModel(application: Application, private val saved: SavedStateHa
     fun selectDay(day: Int) { saved["selectedDay"] = day.coerceIn(0, 13) }
     fun onForeground() {
         foreground = true; autoRefreshAttempts.clear(); refreshClock(); autoRefreshSchedule()
+        checkAppUpdate()
     }
     fun onBackground() { foreground = false }
+    fun checkAppUpdate(force: Boolean = false) {
+        if (updateCheckJob?.isActive == true || updateDownloadJob?.isActive == true) return
+        updateCheckJob = viewModelScope.launch {
+            checkingAppUpdate.value = true
+            try {
+                val result = withContext(Dispatchers.IO) { app.updateChecker.check(force) }
+                when (result) {
+                    is UpdateCheckResult.Available -> appUpdate.value = result.release
+                    UpdateCheckResult.Current -> {
+                        appUpdate.value = null; updateDownload.value = UpdateDownloadState.Idle
+                        if (force) eventsChannel.send(UiEvent.Message("Новых обновлений для этого устройства нет"))
+                    }
+                    UpdateCheckResult.Skipped -> Unit
+                }
+            } catch (e: CancellationException) { throw e }
+              catch (_: Exception) { if (force) eventsChannel.send(UiEvent.Message("Не удалось проверить обновление. Проверьте интернет и попробуйте позже.")) }
+            finally { checkingAppUpdate.value = false }
+        }
+    }
+    fun updatePromptShown(versionCode: Int) { viewModelScope.launch(Dispatchers.IO) {
+        try { app.updateChecker.markPrompted(versionCode) }
+        catch (e: CancellationException) { throw e }
+        catch (_: Exception) { }
+    } }
+    fun downloadAppUpdate() {
+        val release = appUpdate.value ?: return
+        if (updateDownloadJob?.isActive == true) return
+        updateDownloadJob = viewModelScope.launch {
+            updateDownload.value = UpdateDownloadState.Downloading(0, release.sizeBytes)
+            try {
+                val file = updateDownloader.download(release) { updateDownload.value = UpdateDownloadState.Downloading(it, release.sizeBytes) }
+                updateDownload.value = UpdateDownloadState.Ready(file)
+            } catch (e: CancellationException) { throw e }
+              catch (e: Exception) {
+                updateDownload.value = UpdateDownloadState.Failed(if (e is IllegalArgumentException || e is IllegalStateException)
+                    e.message ?: "Не удалось проверить APK" else "Не удалось скачать обновление. Проверьте интернет и попробуйте снова.")
+            }
+        }
+    }
+    fun dismissAppUpdate() {
+        updateDownloader.cancel(); updateDownloadJob?.cancel()
+        appUpdate.value = null; updateDownload.value = UpdateDownloadState.Idle
+    }
+    fun updateInstallError(message: String) { viewModelScope.launch { eventsChannel.send(UiEvent.Message(message)) } }
+    override fun onCleared() { updateDownloader.cancel(); super.onCleared() }
     fun autoRefreshSchedule() {
         if (!foreground || !state.value.ready || importing.value) return
         val groupId = state.value.activeGroup?.groupId ?: return

@@ -68,9 +68,21 @@ jobs:
             exit 1
           fi
           version=$(jq -er '.elements[0].versionName' app/build/outputs/apk/debug/output-metadata.json)
+          version_code=$(jq -er '.elements[0].versionCode' app/build/outputs/apk/debug/output-metadata.json)
+          application_id=$(jq -er '.applicationId' app/build/outputs/apk/debug/output-metadata.json)
+          min_sdk=$("$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$apk" | sed -n "s/^sdkVersion:'\([0-9]*\)'/\1/p")
           apk_name="StudentTable-${version}.apk"
+          tag="build-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
           mkdir -p dist
           cp "$apk" "dist/$apk_name"
+          apk_sha256=$(sha256sum "dist/$apk_name" | cut -d ' ' -f 1)
+          apk_size=$(stat -c %s "dist/$apk_name")
+          jq -n --arg applicationId "$application_id" --arg versionName "$version" \
+            --argjson versionCode "$version_code" --argjson minSdk "$min_sdk" \
+            --arg apkUrl "https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/$apk_name" \
+            --arg sha256 "$apk_sha256" --argjson sizeBytes "$apk_size" \
+            '{schemaVersion: 1, applicationId: $applicationId, versionCode: $versionCode, versionName: $versionName, minSdk: $minSdk, apkUrl: $apkUrl, sha256: $sha256, sizeBytes: $sizeBytes}' \
+            > dist/StudentTable-update.json
           (cd dist && sha256sum "$apk_name" > SHA256SUMS.txt)
           printf 'version=%s\napk_name=%s\n' "$version" "$apk_name" >> "$GITHUB_OUTPUT"
           printf 'Сборка StudentTable %s для Android 8.0 и новее.\n\nСкачайте **%s** из Assets ниже.\n\nКод: `%s`\n' "$version" "$apk_name" "$GITHUB_SHA" > dist/release-notes.md
@@ -82,7 +94,7 @@ jobs:
           APK_NAME: ${{ steps.package.outputs.apk_name }}
         run: |
           tag="build-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
-          gh release create "$tag" "dist/$APK_NAME" dist/SHA256SUMS.txt \
+          gh release create "$tag" "dist/$APK_NAME" dist/SHA256SUMS.txt dist/StudentTable-update.json \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "StudentTable $APP_VERSION · сборка $GITHUB_RUN_NUMBER" \
