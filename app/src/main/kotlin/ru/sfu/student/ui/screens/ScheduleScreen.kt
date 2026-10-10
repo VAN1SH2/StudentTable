@@ -116,7 +116,7 @@ import java.time.format.DateTimeFormatter
     }
 }
 
-@Composable fun FullScheduleScreen(state: StudentState, now: Instant, onBack: () -> Unit, onTask: (StudentTask) -> Unit,
+@Composable fun FullScheduleScreen(state: StudentState, now: Instant, onBack: () -> Unit,
     onLesson: (Lesson) -> Unit, onManageLesson: (Lesson, LocalDate, Boolean) -> Unit) {
     val zone = ScheduleCycle.zone
     val today = now.atZone(zone).toLocalDate()
@@ -143,7 +143,7 @@ import java.time.format.DateTimeFormatter
                     if (daily.isEmpty()) Text("Нет пар", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 }
                 items(daily, key = { "lesson-${it.id}" }) { lesson ->
-                    LessonCard(lesson, tasksForLesson(lesson, state.activeGroup!!.groupId, state.tasks, date.takeIf { lesson.id < 0 }), now, onTask = onTask,
+                    LessonCard(lesson, emptyList(), now,
                         onCreateTask = { onLesson(lesson) },
                         onEdit = if (lesson.id < 0) ({ onManageLesson(lesson, date, false) }) else null,
                         onDelete = if (lesson.id < 0) ({ onManageLesson(lesson, date, true) }) else null)

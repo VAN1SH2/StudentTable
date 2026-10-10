@@ -95,7 +95,7 @@ import java.time.LocalDate
                 }
             }
             when {
-                screen == 0 && full -> FullScheduleScreen(state, now, { full = false }, onTask, onLesson, onManageLesson)
+                screen == 0 && full -> FullScheduleScreen(state, now, { full = false }, onLesson, onManageLesson)
                 screen == 0 -> ScheduleScreen(state, now, day, importing, model::selectDay, { groups = true }, { model.importSchedule() }, { full = true }, onTask, onLesson, onManageLesson)
                 screen == 1 -> TasksScreen(state, now, onTask, { model.saveTask(it.copy(done = !it.done)) }, model::deleteTask, { groups = true })
                 screen == 3 -> CalendarScreen(state, now, LocalDate.parse(calendarDate), importing, { calendarDate = it.toString() },
