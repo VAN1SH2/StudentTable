@@ -12,7 +12,7 @@ import android.os.Build
 
 class StudentApp : Application() {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    val database by lazy { Room.databaseBuilder(this, StudentDatabase::class.java, "student.db").addMigrations(DatabaseMigrations.MIGRATION_1_2, DatabaseMigrations.MIGRATION_2_3, DatabaseMigrations.MIGRATION_3_4, DatabaseMigrations.MIGRATION_4_5, DatabaseMigrations.MIGRATION_5_6, DatabaseMigrations.MIGRATION_6_7).build() }
+    val database by lazy { Room.databaseBuilder(this, StudentDatabase::class.java, "student.db").addMigrations(DatabaseMigrations.MIGRATION_1_2, DatabaseMigrations.MIGRATION_2_3, DatabaseMigrations.MIGRATION_3_4, DatabaseMigrations.MIGRATION_4_5, DatabaseMigrations.MIGRATION_5_6, DatabaseMigrations.MIGRATION_6_7, DatabaseMigrations.MIGRATION_7_8).build() }
     // Replace this one binding to use a different schedule provider.
     val repository by lazy { StudentRepository(database, UniversityScheduleSource()) }
     val reminders by lazy { Reminders(this, database.dao()) }

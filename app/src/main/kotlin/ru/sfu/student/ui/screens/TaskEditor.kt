@@ -51,10 +51,10 @@ private fun reminderLabel(value: Int) = when (value) { -1 -> "Нет"; 0 -> "В 
     val due = Instant.ofEpochMilli(epoch).atZone(zone)
     val selectedGroup = state.groups.firstOrNull { it.groupId == groupId }
     val nowMinute = now.truncatedTo(ChronoUnit.MINUTES)
-    val upcoming = remember(state.lessons, selectedGroup, subjectId, subject, nowMinute, zone) {
+    val upcoming = remember(state.lessons, state.customLessons, state.customExclusions, state.settings, selectedGroup, subjectId, subject, nowMinute, zone) {
         state.upcomingLessons(groupId, subjectId, subject, now, zone)
     }
-    val picked = remember(state.lessons, groupId, selectedLessonId, selectedLessonDate, selectedBindingKey, zone) {
+    val picked = remember(state.lessons, state.customLessons, state.customExclusions, state.settings, state.groups, groupId, selectedLessonId, selectedLessonDate, selectedBindingKey, zone) {
         state.lessonOccurrence(groupId, selectedLessonId, selectedLessonDate, zone, selectedBindingKey)
     }
     val choices = remember(upcoming, picked) { lessonDeadlineChoices(upcoming, picked) }

@@ -4,6 +4,14 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 object DatabaseMigrations {
+    val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS `custom_lessons` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `groupId` INTEGER NOT NULL, `data_subject` TEXT NOT NULL, `data_startTime` TEXT NOT NULL, `data_endTime` TEXT NOT NULL, `data_startDate` TEXT NOT NULL, `data_repeat` INTEGER NOT NULL, `data_untilDate` TEXT, `data_type` TEXT NOT NULL, `data_teacher` TEXT NOT NULL, `data_building` TEXT NOT NULL, `data_room` TEXT NOT NULL, `data_subjectId` INTEGER, `data_subgroup` INTEGER, `parentId` INTEGER, `originalDate` TEXT, FOREIGN KEY(`groupId`) REFERENCES `groups`(`groupId`) ON UPDATE CASCADE ON DELETE CASCADE, FOREIGN KEY(`parentId`) REFERENCES `custom_lessons`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_custom_lessons_groupId` ON `custom_lessons` (`groupId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_custom_lessons_parentId` ON `custom_lessons` (`parentId`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `custom_lesson_exclusions` (`customId` INTEGER NOT NULL, `date` TEXT NOT NULL, PRIMARY KEY(`customId`, `date`), FOREIGN KEY(`customId`) REFERENCES `custom_lessons`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+        }
+    }
     val MIGRATION_6_7 = object : Migration(6, 7) {
         override fun migrate(db: SupportSQLiteDatabase) {
             // Populated from cached lessons during repository initialization, preserving all old task data.

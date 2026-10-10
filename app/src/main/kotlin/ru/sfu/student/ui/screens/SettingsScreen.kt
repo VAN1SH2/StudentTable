@@ -38,6 +38,7 @@ import java.time.*
     val checkingUpdate by model.checkingAppUpdate.collectAsStateWithLifecycle()
     var allowed by remember { mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled()) }
     var delete by remember { mutableStateOf<SavedGroup?>(null) }
+    var resetGroupId by remember { mutableStateOf<Long?>(null) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         allowed = NotificationManagerCompat.from(context).areNotificationsEnabled(); model.permissionChanged()
     }
@@ -83,6 +84,11 @@ import java.time.*
             Text("Неделя автоматически меняется каждый понедельник. Выбор выше исправляет нумерацию групп выбранного вуза.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(updatedLabel(state.activeGroup?.lastUpdated ?: 0, today), style = MaterialTheme.typography.bodySmall)
             OutlinedButton(onClick = { model.importSchedule() }, enabled = !importing && state.activeGroup != null) { Text(if (importing) "Обновляем…" else "Обновить расписание") }
+            val customCount = state.customLessons.count { it.groupId == state.activeGroup?.groupId }
+            Text("Своих пар: $customCount. Добавление — на вкладке календаря.", style = MaterialTheme.typography.bodySmall)
+            OutlinedButton(onClick = { resetGroupId = state.activeGroup?.groupId }, enabled = state.ready && customCount > 0) {
+                Text("Вернуть исходное расписание")
+            }
         } }
         item { SectionCard("Уведомления") {
             Text(if (allowed) "Разрешены в Android" else "Выключены в настройках Android", style = MaterialTheme.typography.bodyMedium)
@@ -118,6 +124,10 @@ import java.time.*
             Text("Расписание, задачи и настройки хранятся локально. Интернет нужен для поиска групп, обновления пар и проверки новых версий приложения.")
             Text("Время и календарь: как на устройстве. Импортируется регулярное расписание; разовые переносы и экзамены проверяйте на сайте.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } }
+    }
+    state.groups.firstOrNull { it.groupId == resetGroupId }?.let { group ->
+        ScheduleResetDialog(group.displayName(), state.customLessons.count { it.groupId == group.groupId },
+            { model.resetCustomSchedule(group.groupId); resetGroupId = null }, { resetGroupId = null })
     }
     delete?.let { group -> AlertDialog(onDismissRequest = { delete = null }, title = { Text("Удалить группу?") },
         text = { Text("${group.groupName}\n\nЗадания сохранятся без привязки к группе.") },

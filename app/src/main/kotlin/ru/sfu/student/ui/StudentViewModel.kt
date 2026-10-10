@@ -13,19 +13,35 @@ import java.time.LocalDate
 
 data class SubjectChoice(val id: Long?, val name: String)
 data class StudentState(val settings: Settings = Settings(), val groups: List<SavedGroup> = emptyList(),
-    val lessons: List<StoredLesson> = emptyList(), val tasks: List<StudentTask> = emptyList(), val ready: Boolean = false) {
+    val lessons: List<StoredLesson> = emptyList(), val tasks: List<StudentTask> = emptyList(), val ready: Boolean = false,
+    val customLessons: List<StoredCustomLesson> = emptyList(), val customExclusions: List<CustomLessonExclusion> = emptyList()) {
     val activeGroup get() = groups.firstOrNull { it.groupId == settings.activeGroupId }
     val primaryGroup get() = groups.firstOrNull { it.groupId == settings.primaryGroupId }
     val weekReference get() = activeGroup?.weekReference(settings) ?: WeekReference(settings.anchorMonday, settings.anchorWeek)
     val weekConfirmed get() = activeGroup?.hasConfirmedWeek(settings) ?: false
     val primaryWeekConfirmed get() = primaryGroup?.hasConfirmedWeek(settings) ?: false
     fun lessonsForGroup(groupId: Long?): List<Lesson> {
+        return regularLessonsForGroup(groupId) + customForGroup(groupId).map { it.template() }
+    }
+    fun regularLessonsForGroup(groupId: Long?): List<Lesson> {
         val group = groups.firstOrNull { it.groupId == groupId } ?: return emptyList()
         return lessons.filter { it.groupId == groupId && group.acceptsLesson(it.data) }.map { it.data }
     }
+    fun customForGroup(groupId: Long?): List<CustomLesson> {
+        val group = groups.firstOrNull { it.groupId == groupId } ?: return emptyList()
+        return customLessons.filter { it.groupId == groupId }.map { it.core(customExclusions) }
+            .filter { group.acceptsLesson(it.template()) }
+    }
+    fun lessonsOn(date: LocalDate, groupId: Long? = activeGroup?.groupId): ScheduleDay {
+        val group = groups.firstOrNull { it.groupId == groupId }
+        val reference = group?.weekReference(settings) ?: weekReference
+        return CustomSchedule.day(regularLessonsForGroup(groupId), customForGroup(groupId), date,
+            LocalDate.parse(reference.monday), reference.week)
+    }
     fun subgroupsForGroup(groupId: Long): List<Int> =
-        LessonSubgroups.available(lessons.filter { it.groupId == groupId }.map { it.data })
-    fun hasScheduleForGroup(groupId: Long?): Boolean = lessons.any { it.groupId == groupId }
+        LessonSubgroups.available(lessons.filter { it.groupId == groupId }.map { it.data } +
+            customLessons.filter { it.groupId == groupId }.map { it.core().template() })
+    fun hasScheduleForGroup(groupId: Long?): Boolean = lessons.any { it.groupId == groupId } || customLessons.any { it.groupId == groupId }
     val activeLessons get() = lessonsForGroup(activeGroup?.groupId)
     val activeScheduleLoaded get() = hasScheduleForGroup(activeGroup?.groupId)
     val activeTasks get() = tasks.filter { it.groupId == activeGroup?.groupId || it.groupId == null }
@@ -42,9 +58,13 @@ class StudentViewModel(application: Application, private val saved: SavedStateHa
     private val app = application as StudentApp
     private val repository = app.repository
     private val initialized = MutableStateFlow(false)
-    val state = combine(repository.settings, repository.groups, repository.lessons, repository.tasks, initialized) { settings, groups, lessons, tasks, ready ->
+    private val baseState = combine(repository.settings, repository.groups, repository.lessons, repository.tasks, initialized) { settings, groups, lessons, tasks, ready ->
         StudentState(settings, groups, lessons, tasks, ready)
+    }
+    val state = combine(baseState, repository.customLessons, repository.customExclusions) { base, custom, exclusions ->
+        base.copy(customLessons = custom, customExclusions = exclusions)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), StudentState())
+    val savingCustomLesson = MutableStateFlow(false)
     val importing = MutableStateFlow(false)
     val searchQuery = MutableStateFlow("")
     val searchUniversity = MutableStateFlow(University.SFU)
@@ -199,6 +219,28 @@ class StudentViewModel(application: Application, private val saved: SavedStateHa
         catch (e: Exception) { eventsChannel.send(UiEvent.Message(friendly(e))) }
     } }
     fun saveTask(task: StudentTask) = change { repository.saveTask(task) }
+    fun saveCustomLesson(item: StoredCustomLesson, onlyDate: LocalDate?, onSaved: () -> Unit) {
+        if (savingCustomLesson.value) return
+        savingCustomLesson.value = true
+        viewModelScope.launch {
+            try {
+                repository.saveCustomLesson(item, onlyDate)
+                onSaved()
+                app.reminders.rebuild()
+                eventsChannel.send(UiEvent.Message("Пара сохранена"))
+            } catch (e: CancellationException) { throw e }
+              catch (e: Exception) { eventsChannel.send(UiEvent.Message(friendly(e))) }
+            finally { savingCustomLesson.value = false }
+        }
+    }
+    fun deleteCustomLesson(id: Long, onlyDate: LocalDate?) = change {
+        repository.deleteCustomLesson(id, onlyDate)
+        eventsChannel.send(UiEvent.Message("Своя пара удалена. Задания сохранены"))
+    }
+    fun resetCustomSchedule(groupId: Long) = change {
+        repository.resetCustomSchedule(groupId)
+        eventsChannel.send(UiEvent.Message("Исходное расписание восстановлено"))
+    }
     fun deleteTask(task: StudentTask) = change {
         repository.dao.deleteTask(task.id)
         app.reminders.cancelTask(task.id)

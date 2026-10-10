@@ -23,14 +23,14 @@ import java.time.format.DateTimeFormatter
 
 @Composable fun ScheduleScreen(state: StudentState, now: Instant, selectedDay: Int, importing: Boolean,
     onSelectDay: (Int) -> Unit, onGroups: () -> Unit, onRefresh: () -> Unit, onFull: () -> Unit,
-    onTask: (StudentTask) -> Unit, onLesson: (Lesson) -> Unit) {
+    onTask: (StudentTask) -> Unit, onLesson: (Lesson) -> Unit, onManageLesson: (Lesson, LocalDate, Boolean) -> Unit) {
     val group = state.activeGroup
     val zone = ScheduleCycle.zone
     val today = now.atZone(zone).toLocalDate()
     val reference = state.weekReference
     val anchorMonday = remember(reference.monday) { LocalDate.parse(reference.monday) }
-    val days = remember(state.lessons, group, today, reference) {
-        ScheduleWindow.days(state.activeLessons, today, anchorMonday, reference.week)
+    val days = remember(state.lessons, state.customLessons, state.customExclusions, group, today, reference) {
+        (0L..13L).map { state.lessonsOn(ScheduleCycle.monday(today).plusDays(it)) }
     }
     val selected = selectedDay.coerceIn(0, 13)
     val selectedWeek = days[selected].week
@@ -83,7 +83,10 @@ import java.time.format.DateTimeFormatter
                     !state.activeScheduleLoaded -> item { EmptyState("Расписание пока не загружено", "Обновите расписание кнопкой ↻. После загрузки пары доступны без интернета.") { TextButton(onClick = onRefresh, enabled = !importing) { Text("Загрузить расписание") } } }
                     daily.isEmpty() -> item {
                         val from = if (date == today) now else date.plusDays(1).atStartOfDay(zone).toInstant()
-                        val next = state.activeLessons.map { it to ScheduleCycle.nextStart(it, from, anchorMonday, reference.week, 0, zone) }.minByOrNull { it.second }
+                        val next = (state.regularLessonsForGroup(group.groupId).map { it to ScheduleCycle.nextStart(it, from, anchorMonday, reference.week, 0, zone) } +
+                            state.customForGroup(group.groupId).mapNotNull { own -> own.nextStart(from, anchorMonday, reference.week, zone)?.let {
+                                own.lesson(it.atZone(zone).toLocalDate(), anchorMonday, reference.week) to it
+                            } }).minByOrNull { it.second }
                         EmptyState(if (date == today) "Сегодня пар нет" else "В этот день пар нет", next?.let {
                             "Следующая пара:\n${it.second.atZone(zone).format(DateTimeFormatter.ofPattern("EEEE, HH:mm", Russian)).replaceFirstChar { ch -> ch.uppercase() }}\n${it.first.subject}"
                         } ?: "Отдыхайте или займитесь заданиями.")
@@ -103,7 +106,9 @@ import java.time.format.DateTimeFormatter
                         }
                     }
                     LessonCard(lesson, lessonTasks[lesson.id].orEmpty(), now, status, onTask,
-                        onCreateTask = { onLesson(lesson) })
+                        onCreateTask = { onLesson(lesson) },
+                        onEdit = if (lesson.id < 0) ({ onManageLesson(lesson, date, false) }) else null,
+                        onDelete = if (lesson.id < 0) ({ onManageLesson(lesson, date, true) }) else null)
                 }
                 item { TextButton(onClick = onFull, enabled = group != null, modifier = Modifier.fillMaxWidth()) { Text("Посмотреть расписание на 2 недели") } }
             }
@@ -112,10 +117,12 @@ import java.time.format.DateTimeFormatter
 }
 
 @Composable fun FullScheduleScreen(state: StudentState, now: Instant, onBack: () -> Unit, onTask: (StudentTask) -> Unit,
-    onLesson: (Lesson) -> Unit) {
+    onLesson: (Lesson) -> Unit, onManageLesson: (Lesson, LocalDate, Boolean) -> Unit) {
     val zone = ScheduleCycle.zone
     val today = now.atZone(zone).toLocalDate()
     var week by remember(state.activeGroup?.groupId) { mutableIntStateOf(ScheduleCycle.week(today, LocalDate.parse(state.weekReference.monday), state.weekReference.week)) }
+    val currentWeek = ScheduleCycle.week(today, LocalDate.parse(state.weekReference.monday), state.weekReference.week)
+    val monday = ScheduleCycle.monday(today).plusWeeks(if (week == currentWeek) 0 else 1)
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_back), "Назад") }
@@ -129,14 +136,17 @@ import java.time.format.DateTimeFormatter
         LazyColumn(Modifier.fillMaxSize(), overscrollEffect = null, contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (!state.activeScheduleLoaded) item { EmptyState("Расписание пока не загружено", "Вернитесь на главный экран и обновите его.") }
             else (1..7).forEach { day ->
-                val daily = state.activeLessons.filter { it.week == week && it.dayOfWeek == day }.sortedBy { it.startTime }
+                val date = monday.plusDays(day - 1L)
+                val daily = state.lessonsOn(date).lessons
                 item(key = "day-$day") {
-                    Text(DayNames[day - 1], style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp))
+                    Text(DayNames[day - 1] + " · " + date.format(DateTimeFormatter.ofPattern("dd.MM")), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp))
                     if (daily.isEmpty()) Text("Нет пар", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 }
                 items(daily, key = { "lesson-${it.id}" }) { lesson ->
-                    LessonCard(lesson, tasksForLesson(lesson, state.activeGroup!!.groupId, state.tasks), now, onTask = onTask,
-                        onCreateTask = { onLesson(lesson) })
+                    LessonCard(lesson, tasksForLesson(lesson, state.activeGroup!!.groupId, state.tasks, date.takeIf { lesson.id < 0 }), now, onTask = onTask,
+                        onCreateTask = { onLesson(lesson) },
+                        onEdit = if (lesson.id < 0) ({ onManageLesson(lesson, date, false) }) else null,
+                        onDelete = if (lesson.id < 0) ({ onManageLesson(lesson, date, true) }) else null)
                 }
             }
         }

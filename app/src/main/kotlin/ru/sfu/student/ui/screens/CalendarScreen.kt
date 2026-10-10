@@ -30,7 +30,8 @@ import java.time.format.DateTimeFormatter
 
 @Composable fun CalendarScreen(state: StudentState, now: Instant, selectedDate: LocalDate, importing: Boolean,
     onSelectDate: (LocalDate) -> Unit, onGroups: () -> Unit, onRefresh: () -> Unit,
-    onTask: (StudentTask) -> Unit, onDone: (StudentTask) -> Unit, onLesson: (Lesson, LocalDate) -> Unit) {
+    onTask: (StudentTask) -> Unit, onDone: (StudentTask) -> Unit, onLesson: (Lesson, LocalDate) -> Unit,
+    onAddLesson: (LocalDate) -> Unit, onManageLesson: (Lesson, LocalDate, Boolean) -> Unit) {
     val context = LocalContext.current
     val zone = ScheduleCycle.zone
     val today = now.atZone(zone).toLocalDate()
@@ -38,7 +39,7 @@ import java.time.format.DateTimeFormatter
     val month = YearMonth.from(selectedDate)
     val dates = remember(month) { ScheduleCalendar.monthDates(month) }
     val deadlines = remember(state.tasks, group?.groupId, zone) { state.calendarDeadlines(zone) }
-    val day = remember(state.lessons, state.groups, state.settings, state.tasks, selectedDate, zone) {
+    val day = remember(state.lessons, state.customLessons, state.customExclusions, state.groups, state.settings, state.tasks, selectedDate, zone) {
         state.calendarDay(selectedDate, zone)
     }
     fun pickDate() {
@@ -106,8 +107,11 @@ import java.time.format.DateTimeFormatter
                 if (!state.weekConfirmed) Text("Укажите текущую неделю в настройках", style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Text("Пары · ${day.schedule.lessons.size}", style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 16.dp))
+            Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Пары · ${day.schedule.lessons.size}", style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                TextButton(onClick = { onAddLesson(selectedDate) }, enabled = state.ready && group != null) { Text("+ Своя пара") }
+            }
         }
         when {
             !state.ready -> item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
@@ -122,7 +126,9 @@ import java.time.format.DateTimeFormatter
         if (state.ready && group != null) items(day.schedule.lessons, key = { "lesson-${it.id}" }) { lesson ->
             val remaining = if (selectedDate == today) ScheduleCycle.remainingMinutes(lesson, selectedDate, now, zone) else null
             LessonCard(lesson, tasksForLesson(lesson, group.groupId, state.tasks, selectedDate), now,
-                status = remaining?.let { "До конца пары — $it мин" }, onTask = onTask, onCreateTask = { onLesson(lesson, selectedDate) })
+                status = remaining?.let { "До конца пары — $it мин" }, onTask = onTask, onCreateTask = { onLesson(lesson, selectedDate) },
+                onEdit = if (lesson.id < 0) ({ onManageLesson(lesson, selectedDate, false) }) else null,
+                onDelete = if (lesson.id < 0) ({ onManageLesson(lesson, selectedDate, true) }) else null)
         }
         item { Text("Дедлайны · ${day.deadlines.size}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
         if (state.ready && day.deadlines.isEmpty()) item { Text("На этот день дедлайнов нет", color = MaterialTheme.colorScheme.onSurfaceVariant) }

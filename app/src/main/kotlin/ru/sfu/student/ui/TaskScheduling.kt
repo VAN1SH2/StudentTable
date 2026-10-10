@@ -12,8 +12,10 @@ fun StudentState.upcomingLessons(groupId: Long?, subjectId: Long?, subject: Stri
     zone: ZoneId = ScheduleCycle.zone): List<LessonOccurrence> {
     val group = groups.firstOrNull { it.groupId == groupId } ?: return emptyList()
     val reference = group.weekReference(settings)
-    return UpcomingLessons.forSubject(lessonsForGroup(groupId), subjectId, subject, now,
-        LocalDate.parse(reference.monday), reference.week, zone)
+    val anchor = LocalDate.parse(reference.monday)
+    return (UpcomingLessons.forSubject(regularLessonsForGroup(groupId), subjectId, subject, now, anchor, reference.week, zone) +
+        CustomSchedule.upcoming(customForGroup(groupId), subjectId, subject, now, anchor, reference.week, zone))
+        .sortedWith(compareBy({ it.startsAt }, { it.lesson.type }, { it.lesson.id }))
 }
 
 fun StudentState.initialTaskOccurrence(groupId: Long?, lesson: Lesson, now: Instant,
@@ -30,6 +32,18 @@ fun lessonDeadlineChoices(upcoming: List<LessonOccurrence>, picked: LessonOccurr
 fun StudentState.lessonOccurrence(groupId: Long?, lessonId: Long?, lessonDate: String?,
     zone: ZoneId = ScheduleCycle.zone, bindingKey: String? = null): LessonOccurrence? {
     if (groupId == null || lessonId == null || lessonDate == null) return null
+    if (lessonId < 0) {
+        val group = groups.firstOrNull { it.groupId == groupId } ?: return null
+        val reference = group.weekReference(settings)
+        val custom = customLessons.firstOrNull { it.id == -lessonId && it.groupId == groupId }?.core(customExclusions) ?: return null
+        return runCatching {
+            val date = LocalDate.parse(lessonDate)
+            val anchor = LocalDate.parse(reference.monday)
+            if (!custom.occurs(date, anchor, reference.week)) null
+            else LessonOccurrence(custom.lesson(date, anchor, reference.week), date,
+                date.atTime(LocalTime.parse(custom.data.startTime)).atZone(zone).toInstant())
+        }.getOrNull()
+    }
     val lesson = LessonBinding.resolve(lessonId, bindingKey, lessons.filter { it.groupId == groupId }.map { it.data }) ?: return null
     return runCatching {
         val date = LocalDate.parse(lessonDate)

@@ -70,6 +70,7 @@ class DatabaseMigrationTest {
                                 db.execSQL("UPDATE tasks SET reminderMinutes='2880,60' WHERE id=42")
                                 db.execSQL("INSERT INTO deliveries VALUES ('task:42:1900000000000:60',123456)")
                             }
+                            if (fromVersion >= 7) db.execSQL("UPDATE tasks SET lessonBindingKey='existing-stable-key' WHERE id=42")
                         }
                     }
                 }
@@ -77,7 +78,7 @@ class DatabaseMigrationTest {
             }).build())
         helper.writableDatabase; helper.close()
         return Room.databaseBuilder(context, StudentDatabase::class.java, "migration-test.db")
-            .addMigrations(DatabaseMigrations.MIGRATION_1_2, DatabaseMigrations.MIGRATION_2_3, DatabaseMigrations.MIGRATION_3_4, DatabaseMigrations.MIGRATION_4_5, DatabaseMigrations.MIGRATION_5_6, DatabaseMigrations.MIGRATION_6_7).allowMainThreadQueries().build().also { database = it }
+            .addMigrations(DatabaseMigrations.MIGRATION_1_2, DatabaseMigrations.MIGRATION_2_3, DatabaseMigrations.MIGRATION_3_4, DatabaseMigrations.MIGRATION_4_5, DatabaseMigrations.MIGRATION_5_6, DatabaseMigrations.MIGRATION_6_7, DatabaseMigrations.MIGRATION_7_8).allowMainThreadQueries().build().also { database = it }
     }
     @Test fun preservesTasksLessonsSettingsAndValidatesGeneratedSchema() = runBlocking {
         val db = migrate(); val dao = db.dao()
@@ -217,5 +218,27 @@ class DatabaseMigrationTest {
         dao.deleteTask(captured.id)
         dao.saveTask(captured)
         assertEquals(captured, dao.task(42))
+    }
+    @Test fun versionSevenMigrationPreservesExistingDataAndCreatesCascadingLocalClasses() = runBlocking {
+        val dao = migrate(7).dao()
+        assertTrue(dao.allCustomLessons().isEmpty())
+        assertTrue(dao.allCustomExclusions().isEmpty())
+        val task = dao.task(42)!!
+        assertEquals("Заметка", task.notes)
+        assertEquals(listOf(2880, 60), task.reminderMinutes)
+        assertEquals(12L, task.lessonId)
+        assertEquals("existing-stable-key", task.lessonBindingKey)
+        assertEquals(2, dao.allGroups().size)
+        assertEquals(4, dao.allLessons().size)
+        val id = dao.insertCustomLesson(StoredCustomLesson(groupId = 107691,
+            data = ru.sfu.student.core.CustomLessonDetails("Своя пара", "10:00", "11:30", "2026-10-05", 3)))
+        dao.excludeCustomLesson(CustomLessonExclusion(id, "2026-10-12"))
+        dao.rekeyGroup(107691, 108257)
+        assertEquals(108257L, dao.customLesson(id)!!.groupId)
+        assertEquals(1, dao.allCustomExclusions().size)
+        dao.deleteGroup(108257)
+        assertTrue(dao.allCustomLessons().isEmpty())
+        assertTrue(dao.allCustomExclusions().isEmpty())
+        assertEquals(task.copy(groupId = null), dao.task(42))
     }
 }

@@ -15,7 +15,6 @@ fun StudentState.calendarDeadlines(zone: ZoneId = ScheduleCycle.zone): Map<Local
         .groupBy { Instant.ofEpochMilli(it.dueAt).atZone(zone).toLocalDate() }
 
 fun StudentState.calendarDay(date: LocalDate, zone: ZoneId = ScheduleCycle.zone): CalendarDay {
-    val reference = weekReference
-    return CalendarDay(ScheduleCalendar.day(activeLessons, date, LocalDate.parse(reference.monday), reference.week),
+    return CalendarDay(lessonsOn(date),
         calendarDeadlines(zone)[date].orEmpty())
 }

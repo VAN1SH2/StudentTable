@@ -55,15 +55,11 @@ class Reminders(private val context: Context, private val dao: StudentDao) {
             }
         }
         val groups = dao.allGroups()
-        val primary = groups.firstOrNull { it.groupId == settings.primaryGroupId }
-        if (primary != null) {
-            val reference = primary.weekReference(settings)
-            LessonReminderPlan.select(settings, groups, dao.allLessons()).forEach { stored ->
-                val start = ScheduleCycle.nextStart(stored.data, now, LocalDate.parse(reference.monday), reference.week, 0, zone)
-                val key = "lesson:${stored.groupId}:${stored.id}:${start.toEpochMilli()}"
-                if (dao.wasDelivered(key) == 0) enqueue("lesson", stored.id, start.toEpochMilli(), key,
-                    start.minusSeconds(settings.lessonLeadMinutes * 60L), now, stored.groupId)
-            }
+        LessonReminderPlan.upcoming(settings, groups, dao.allLessons(), dao.allCustomLessons(), dao.allCustomExclusions(), now, zone).forEach { planned ->
+            val start = planned.startsAt
+            val key = "lesson:${planned.groupId}:${planned.lesson.id}:${start.toEpochMilli()}"
+            if (dao.wasDelivered(key) == 0) enqueue("lesson", planned.lesson.id, start.toEpochMilli(), key,
+                start.minusSeconds(settings.lessonLeadMinutes * 60L), now, planned.groupId)
         }
         dao.pruneDeliveries(now.minusSeconds(60L * 86400).toEpochMilli())
     }
@@ -121,11 +117,18 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
             body = "${task.title} · $time"
         } else {
             val groupId = inputData.getLong("groupId", -1)
-            val lesson = dao.lesson(groupId, id)?.data ?: return Result.success()
             val group = dao.group(groupId) ?: return Result.success()
-            if (!settings.lessonNotifications || !group.hasConfirmedWeek(settings) || settings.primaryGroupId != groupId || !group.acceptsLesson(lesson)) return Result.success()
             val reference = group.weekReference(settings)
             val start = Instant.ofEpochMilli(event).atZone(ScheduleCycle.zone)
+            val lesson = if (id < 0) {
+                val stored = dao.customLesson(-id) ?: return Result.success()
+                if (stored.groupId != groupId) return Result.success()
+                val custom = stored.core(dao.allCustomExclusions())
+                val anchor = LocalDate.parse(reference.monday)
+                if (!custom.occurs(start.toLocalDate(), anchor, reference.week)) return Result.success()
+                custom.lesson(start.toLocalDate(), anchor, reference.week)
+            } else dao.lesson(groupId, id)?.data ?: return Result.success()
+            if (!settings.lessonNotifications || !group.hasConfirmedWeek(settings) || settings.primaryGroupId != groupId || !group.acceptsLesson(lesson)) return Result.success()
             if (start.dayOfWeek.value != lesson.dayOfWeek || start.toLocalTime().toString() != lesson.startTime ||
                 ScheduleCycle.week(start.toLocalDate(), LocalDate.parse(reference.monday), reference.week) != lesson.week ||
                 now < event - settings.lessonLeadMinutes * 60000L || now >= event) return Result.success()
